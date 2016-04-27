@@ -1,0 +1,4 @@
+<plugin>
+	<name>npe</name>
+	<classname>timzh.stricter.ThePlugin</classname>
+</plugin>
