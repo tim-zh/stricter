@@ -20,18 +20,23 @@ private class Component(override val global: Global, override val phaseName: Str
   override def newPhase(prev: Phase) = new StdPhase(prev) {
     override def name = phaseName
 
-    override def apply(unit: CompilationUnit) = {
-      handleNulls(unit.body)
-      handleDefaultNulls(unit.body)
-      handleTypeCasts(unit.body)
-    }
+    override def apply(unit: CompilationUnit) = TreeTraverser(unit.body)
 
-    def handleNulls(body: Global#Tree) = {
-      for (tree @ Literal(Constant(null)) <- body)
-        global.reporter.error(tree.pos, "Unexpected token")
-    }
+    object TreeTraverser extends Traverser {
+      override def traverse(tree: global.Tree) = {
+        tree match {
+          case x@Literal(Constant(null)) =>
+            reporter.error(x.pos, "Unexpected token")
+          case x@ValDef(mods, name, t, _)
+            if mods.hasFlag(Flag.DEFAULTINIT) && !notNullDefaults.exists(x => t.tpe <:< x) =>
+            reporter.error(x.pos, s"Field ${name.toString.trim} hasn't been initialized")
+          case x@Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
+            reporter.error(x.pos, s"Invalid method $name")
+          case _ =>
+        }
+        super.traverse(tree)
+      }
 
-    def handleDefaultNulls(body: Global#Tree) = {
       val notNullDefaults = Set(
         definitions.BooleanClass.tpe,
         definitions.ByteClass.tpe,
@@ -42,19 +47,6 @@ private class Component(override val global: Global, override val phaseName: Str
         definitions.FloatClass.tpe,
         definitions.DoubleClass.tpe,
         definitions.UnitClass.tpe)
-
-      for {
-        tree @ ValDef(mods, name, t, _) <- body
-        if mods.hasFlag(Flag.DEFAULTINIT) && ! notNullDefaults.exists(x => t.tpe <:< x)
-      } {
-        global.reporter.error(tree.pos, s"Field ${name.toString.trim} hasn't been initialized")
-      }
-    }
-
-    def handleTypeCasts(body: Global#Tree) = {
-      for (tree @ Select(_, TermName(name)) <- body if name == "isInstanceOf" || name == "asInstanceOf") {
-        global.reporter.error(tree.pos, s"Invalid method $name")
-      }
     }
   }
 }
