@@ -27,28 +27,43 @@ private class Component(override val global: Global, override val phaseName: Str
         tree match {
           case x @ Literal(Constant(null)) =>
             reporter.error(x.pos, "Unexpected token")
-          case x @ ValDef(mods, name, t, _)
-            if mods.hasFlag(Flag.DEFAULTINIT) && !notNullDefaults.exists(x => t.tpe <:< x) =>
-            reporter.error(x.pos, s"Field ${name.toString.trim} hasn't been initialized")
+
+          case x @ ValDef(mods, name, t, _) =>
+            if (mods.hasFlag(Flag.DEFAULTINIT) && !notNullDefaults.exists(x => t.tpe <:< x))
+              reporter.error(x.pos, s"Field ${name.toString.trim} hasn't been initialized")
+            if (topClasses.exists(x => t.tpe =:= x))
+              reporter.warning(x.pos, "Unconstrained type")
+
+          case x @ DefDef(m, _, _, _, t, _) =>
+            if (! m.hasAccessorFlag && topClasses.exists(x => t.tpe =:= x))
+              reporter.warning(x.pos, "Unconstrained type")
+
           case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
             reporter.error(x.pos, s"Invalid method $name")
+
           case x @ Return(_) =>
             reporter.warning(x.pos, "Unexpected token")
+
           case _ =>
         }
         super.traverse(tree)
       }
 
+      val topClasses = Set(
+        definitions.AnyTpe,
+        definitions.AnyValTpe,
+        definitions.AnyRefTpe)
+
       val notNullDefaults = Set(
-        definitions.BooleanClass.tpe,
-        definitions.ByteClass.tpe,
-        definitions.ShortClass.tpe,
-        definitions.CharClass.tpe,
-        definitions.IntClass.tpe,
-        definitions.LongClass.tpe,
-        definitions.FloatClass.tpe,
-        definitions.DoubleClass.tpe,
-        definitions.UnitClass.tpe)
+        definitions.BooleanTpe,
+        definitions.ByteTpe,
+        definitions.ShortTpe,
+        definitions.CharTpe,
+        definitions.IntTpe,
+        definitions.LongTpe,
+        definitions.FloatTpe,
+        definitions.DoubleTpe,
+        definitions.UnitTpe)
     }
   }
 }
