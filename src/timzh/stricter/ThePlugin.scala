@@ -25,13 +25,15 @@ private class Component(override val global: Global, override val phaseName: Str
     object TreeTraverser extends Traverser {
       override def traverse(tree: global.Tree) = {
         tree match {
-          case x@Literal(Constant(null)) =>
+          case x @ Literal(Constant(null)) =>
             reporter.error(x.pos, "Unexpected token")
-          case x@ValDef(mods, name, t, _)
+          case x @ ValDef(mods, name, t, _)
             if mods.hasFlag(Flag.DEFAULTINIT) && !notNullDefaults.exists(x => t.tpe <:< x) =>
             reporter.error(x.pos, s"Field ${name.toString.trim} hasn't been initialized")
-          case x@Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
+          case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
             reporter.error(x.pos, s"Invalid method $name")
+          case x @ Return(_) =>
+            reporter.warning(x.pos, "Unexpected token")
           case _ =>
         }
         super.traverse(tree)
