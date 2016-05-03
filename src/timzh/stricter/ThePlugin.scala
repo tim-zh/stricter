@@ -37,12 +37,17 @@ private class Component(override val global: Global, override val phaseName: Str
           case x @ DefDef(mods, name, _, _, t, _) =>
             if (! mods.hasAccessorFlag && topClasses.exists(x => t.tpe =:= x))
               reporter.warning(x.pos, "Unconstrained type")
+            val symbols = name.toString.replaceAll("[a-zA-Z]+", "").length
+            if (! mods.isSynthetic && symbols > 2)
+              reporter.error(x.pos, s"Cryptic name ${name.debugString}")
+            else if (! mods.isSynthetic && symbols > 1)
+              reporter.warning(x.pos, s"Symbolic name ${name.debugString}")
             if (mods.isImplicit && ! mods.isSynthetic)
-              reporter.warning(x.pos, "Implicit def")
+              reporter.error(x.pos, "Implicit def")
 
           case x @ ClassDef(mods, _, _, _) =>
             if (mods.isImplicit)
-              reporter.warning(x.pos, "Implicit class")
+              reporter.error(x.pos, "Implicit class")
 
           case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
             reporter.error(x.pos, s"Invalid method $name")
