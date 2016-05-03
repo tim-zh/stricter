@@ -34,9 +34,15 @@ private class Component(override val global: Global, override val phaseName: Str
             if (topClasses.exists(x => t.tpe =:= x))
               reporter.warning(x.pos, "Unconstrained type")
 
-          case x @ DefDef(m, _, _, _, t, _) =>
-            if (! m.hasAccessorFlag && topClasses.exists(x => t.tpe =:= x))
+          case x @ DefDef(mods, name, _, _, t, _) =>
+            if (! mods.hasAccessorFlag && topClasses.exists(x => t.tpe =:= x))
               reporter.warning(x.pos, "Unconstrained type")
+            if (mods.isImplicit && ! mods.isSynthetic)
+              reporter.warning(x.pos, "Implicit def")
+
+          case x @ ClassDef(mods, _, _, _) =>
+            if (mods.isImplicit)
+              reporter.warning(x.pos, "Implicit class")
 
           case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
             reporter.error(x.pos, s"Invalid method $name")
