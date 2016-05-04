@@ -25,10 +25,9 @@ private class Component(override val global: Global, override val phaseName: Str
     object TreeTraverser extends Traverser {
       override def traverse(tree: global.Tree) = {
         checkNull(tree)
-        checkAny(tree)
+        checkWeakTyping(tree)
         checkSymbolName(tree)
         checkImplicit(tree)
-        checkManualType(tree)
         checkGoTo(tree)
         super.traverse(tree)
       }
@@ -42,13 +41,15 @@ private class Component(override val global: Global, override val phaseName: Str
         case _ =>
       }
 
-      def checkAny(tree: global.Tree) = tree match {
+      def checkWeakTyping(tree: global.Tree) = tree match {
         case x @ ValDef(_, _, t, _) =>
           if (topClasses.exists(x => t.tpe =:= x))
             reporter.warning(x.pos, "Unconstrained type")
         case x @ DefDef(mods, _, _, _, t, _) =>
           if (! mods.hasAccessorFlag && topClasses.exists(x => t.tpe =:= x))
             reporter.warning(x.pos, "Unconstrained type")
+        case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
+          reporter.error(x.pos, s"Invalid method $name")
         case _ =>
       }
 
@@ -74,14 +75,10 @@ private class Component(override val global: Global, override val phaseName: Str
         case _ =>
       }
 
-      def checkManualType(tree: global.Tree) = tree match {
-        case x @ Select(_, TermName(name)) if name == "isInstanceOf" || name == "asInstanceOf" =>
-          reporter.error(x.pos, s"Invalid method $name")
-        case _ =>
-      }
-
       def checkGoTo(tree: global.Tree) = tree match {
         case x @ Return(_) =>
+          reporter.warning(x.pos, "Unexpected token")
+        case x @ Throw(_) =>
           reporter.warning(x.pos, "Unexpected token")
         case _ =>
       }
